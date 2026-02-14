@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elering API Tester</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+        }
+        .endpoint-test {
+            background: #2d2d2d;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #4ec9b0;
+        }
+        .endpoint-url {
+            color: #ce9178;
+            word-break: break-all;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        .result {
+            background: #1e1e1e;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+            max-height: 400px;
+            overflow: auto;
+        }
+        .success {
+            border-left-color: #4ec9b0;
+        }
+        .error {
+            border-left-color: #f48771;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-200 {
+            background: #4ec9b0;
+            color: #000;
+        }
+        .status-error {
+            background: #f48771;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Elering API Endpoint Tester</h1>
+    <p>Testing various endpoints to find the correct API structure for production and consumption data.</p>
+
+    <div id="tests"></div>
+
+    <script>
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 2);
+
+        const start = startDate.toISOString();
+        const end = endDate.toISOString();
+
+        const endpoints = [
+            {
+                name: 'System Data (production/consumption)',
+                url: `https://dashboard.elering.ee/api/system?start=${start}&end=${end}`
+            },
+            {
+                name: 'NPS Price Data',
+                url: `https://dashboard.elering.ee/api/nps/price?start=${start}&end=${end}`
+            },
+            {
+                name: 'Current Price (EE)',
+                url: 'https://dashboard.elering.ee/api/nps/price/EE/current'
+            },
+            {
+                name: 'System Production',
+                url: `https://dashboard.elering.ee/api/system/production?start=${start}&end=${end}`
+            },
+            {
+                name: 'System Consumption',
+                url: `https://dashboard.elering.ee/api/system/consumption?start=${start}&end=${end}`
+            },
+            {
+                name: 'Generation',
+                url: `https://dashboard.elering.ee/api/generation?start=${start}&end=${end}`
+            },
+            {
+                name: 'Chart Data',
+                url: `https://dashboard.elering.ee/api/chart?start=${start}&end=${end}`
+            }
+        ];
+
+        async function testEndpoint(endpoint, index) {
+            const testDiv = document.getElementById(`test-${index}`);
+            const resultDiv = testDiv.querySelector('.result');
+
+            resultDiv.innerHTML = '<pre>⏳ Loading...</pre>';
+
+            try {
+                const response = await fetch(endpoint.url);
+                const contentType = response.headers.get('content-type');
+
+                let data;
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    data = await response.text();
+                }
+
+                const statusClass = response.ok ? 'status-200' : 'status-error';
+                const statusText = `<span class="status ${statusClass}">${response.status} ${response.statusText}</span>`;
+
+                testDiv.className = 'endpoint-test ' + (response.ok ? 'success' : 'error');
+
+                resultDiv.innerHTML = `
+                    ${statusText}
+                    <pre>${JSON.stringify(data, null, 2).substring(0, 3000)}${JSON.stringify(data).length > 3000 ? '\n...(truncated)' : ''}</pre>
+                `;
+            } catch (error) {
+                testDiv.className = 'endpoint-test error';
+                resultDiv.innerHTML = `
+                    <span class="status status-error">ERROR</span>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        function testAll() {
+            endpoints.forEach((endpoint, index) => {
+                testEndpoint(endpoint, index);
+            });
+        }
+
+        // Initialize
+        const testsContainer = document.getElementById('tests');
+        endpoints.forEach((endpoint, index) => {
+            const div = document.createElement('div');
+            div.id = `test-${index}`;
+            div.className = 'endpoint-test';
+            div.innerHTML = `
+                <h3>${endpoint.name}</h3>
+                <div class="endpoint-url">${endpoint.url}</div>
+                <button onclick="testEndpoint(endpoints[${index}], ${index})">Test Endpoint</button>
+                <div class="result"><pre>Click "Test Endpoint" to check this URL</pre></div>
+            `;
+            testsContainer.appendChild(div);
+        });
+    </script>
+
+    <button onclick="testAll()" style="position: fixed; top: 20px; right: 20px; font-size: 16px; padding: 12px 20px;">
+        🚀 Test All Endpoints
+    </button>
+</body>
+</html>
