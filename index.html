@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estonian Electricity Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .info-banner {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        input[type="date"] {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: auto;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .quick-range {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-btn {
+            padding: 8px 15px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            min-height: 400px;
+        }
+
+        .chart-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            padding: 15px;
+            border-radius: 5px;
+            color: #c33;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .data-note {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.85em;
+            color: #666;
+            border-left: 4px solid #667eea;
+        }
+
+        .data-note a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .data-note a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Estonian Electricity Dashboard</h1>
+        <p class="subtitle">Real-time production and consumption data from Elering</p>
+
+        <div class="info-banner">
+            <strong>📅 Data Availability:</strong> Elering API provides approximately 15 days of historical data.
+            Date range is automatically limited to available data.
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="startDate">Start Date:</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="control-group">
+                <label for="endDate">End Date:</label>
+                <input type="date" id="endDate">
+            </div>
+            <button onclick="updateCharts()" id="updateBtn">Update Dashboard</button>
+        </div>
+
+        <div class="controls">
+            <div class="quick-range">
+                <button class="quick-btn" onclick="setQuickRange(7)">Last 7 Days</button>
+                <button class="quick-btn" onclick="setQuickRange(14)">Last 14 Days</button>
+                <button class="quick-btn" onclick="setQuickRange(3)">Last 3 Days</button>
+                <button class="quick-btn" onclick="setQuickRange(1)">Last 24 Hours</button>
+            </div>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            Loading data from Elering API...
+        </div>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="chart-container">
+            <div class="chart-title">Production vs Consumption</div>
+            <canvas id="productionConsumptionChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Production Breakdown by Source (Stacked)</div>
+            <canvas id="renewableChart"></canvas>
+            <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
+                ⚠️ Note: Elering API occasionally reports inconsistent solar vs renewable values. Chart auto-corrects these anomalies.
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Electricity Market Price (Nord Pool Spot)</div>
+            <canvas id="priceChart"></canvas>
+            <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
+                💡 Market price reflects supply/demand balance. Prices do not vary by energy source - all producers receive the same spot price.
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Price vs Production Mix Correlation</div>
+            <canvas id="priceCorrelationChart"></canvas>
+            <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
+                📊 <strong style="color: rgb(220, 53, 69);">Red line = Price (EUR/MWh, right axis)</strong> overlaid on production sources (MW, left axis). Watch how price correlates with renewable vs non-renewable mix.
+            </div>
+        </div>
+
+        <div class="data-note">
+            <strong>Data Source:</strong> Elering API |
+            <strong>Data Granularity:</strong> 15-minute intervals (production), hourly (prices) |
+            <strong>Prices:</strong> Nord Pool spot market - same price for all energy sources |
+            <strong>Detailed breakdown by source:</strong> <a href="https://elering.ee/en/production-and-forecast" target="_blank">Download Excel tables</a> |
+            <strong>License:</strong> MIT - Free to use and modify
+        </div>
+    </div>
+
+    <script>
+        let productionConsumptionChart;
+        let renewableChart;
+        let priceChart;
+        let priceCorrelationChart;
+
+        // No timezone conversion needed for display - keep UTC timestamps as-is
+        // The fix is in the API request, not the display
+
+        // Calculate valid date range (limit to last 15 days to be safe)
+        function getValidDateRange() {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 15); // Safe limit
+
+            return { startDate, endDate };
+        }
+
+        // Set date inputs with validation
+        function setDefaultDates() {
+            const { startDate, endDate } = getValidDateRange();
+
+            // Set 7 days by default
+            const defaultStart = new Date();
+            defaultStart.setDate(defaultStart.getDate() - 7);
+
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = defaultStart;
+
+            // Set min/max limits on date inputs
+            const minDate = new Date();
+            minDate.setDate(minDate.getDate() - 15);
+            document.getElementById('startDate').min = minDate.toISOString().split('T')[0];
+            document.getElementById('startDate').max = endDate.toISOString().split('T')[0];
+            document.getElementById('endDate').min = minDate.toISOString().split('T')[0];
+            document.getElementById('endDate').max = endDate.toISOString().split('T')[0];
+        }
+
+        // Quick range buttons
+        function setQuickRange(days) {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = startDate;
+
+            updateCharts();
+        }
+
+        // Format date for API - interpret date as local Estonian time
+        function formatDateForAPI(date, inputElement) {
+            // Get the actual string value from the input (YYYY-MM-DD)
+            const dateString = inputElement.value;
+
+            if (!dateString) {
+                return date.toISOString();
+            }
+
+            // Create a Date object treating this as LOCAL time (Estonian)
+            // When we parse "2026-02-13" without timezone, it's interpreted as local midnight
+            const localDate = new Date(dateString + 'T00:00:00');
+
+            // toISOString() converts to UTC automatically
+            // If local is Feb 13 00:00 EET (UTC+2), this becomes Feb 12 22:00 UTC
+            return localDate.toISOString();
+        }
+
+        // Fetch production/consumption data using CORS proxy
+        async function fetchProductionConsumption(start, end) {
+            const apiUrl = `https://dashboard.elering.ee/api/system?start=${start}&end=${end}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+
+            console.log('Fetching production:', proxyUrl);
+
+            const response = await fetch(proxyUrl);
+            if (!response.ok) {
+                throw new Error(`API returned status ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error('API returned unsuccessful response');
+            }
+
+            return data;
+        }
+
+        // Fetch price data using CORS proxy
+        async function fetchPriceData(start, end) {
+            const apiUrl = `https://dashboard.elering.ee/api/nps/price?start=${start}&end=${end}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+
+            console.log('Fetching prices:', proxyUrl);
+
+            const response = await fetch(proxyUrl);
+            if (!response.ok) {
+                throw new Error(`Price API returned status ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error('Price API returned unsuccessful response');
+            }
+
+            return data.data.ee; // Return Estonian prices
+        }
+
+        // Filter out null data points
+        function filterValidData(data) {
+            return data.data.filter(item =>
+                item.production !== null &&
+                item.consumption !== null
+            );
+        }
+
+        // Validate date range
+        function validateDateRange(startDate, endDate) {
+            const { startDate: minStart } = getValidDateRange();
+            const now = new Date();
+
+            if (startDate < minStart) {
+                throw new Error(`Start date cannot be earlier than ${minStart.toLocaleDateString()}. API only provides ~15 days of history.`);
+            }
+
+            if (endDate > now) {
+                throw new Error('End date cannot be in the future');
+            }
+
+            if (startDate > endDate) {
+                throw new Error('Start date must be before end date');
+            }
+
+            const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+            if (daysDiff > 15) {
+                throw new Error('Date range cannot exceed 15 days');
+            }
+        }
+
+        // Process and display data
+        async function updateCharts() {
+            const startInput = document.getElementById('startDate');
+            const endInput = document.getElementById('endDate');
+
+            const startDate = startInput.valueAsDate;
+            const endDate = endInput.valueAsDate;
+            const updateBtn = document.getElementById('updateBtn');
+
+            if (!startDate || !endDate) {
+                showError('Please select both start and end dates');
+                return;
+            }
+
+            try {
+                validateDateRange(startDate, endDate);
+            } catch (error) {
+                showError(error.message);
+                return;
+            }
+
+            hideError();
+            showLoading();
+            updateBtn.disabled = true;
+
+            try {
+                const startStr = formatDateForAPI(startDate, startInput);
+                const endStr = formatDateForAPI(endDate, endInput);
+
+                // Fetch both production and price data in parallel
+                const [productionData, priceData] = await Promise.all([
+                    fetchProductionConsumption(startStr, endStr),
+                    fetchPriceData(startStr, endStr)
+                ]);
+
+                const validData = filterValidData(productionData);
+
+                if (validData.length === 0) {
+                    throw new Error('No data available for the selected date range. Try a more recent period.');
+                }
+
+                console.log(`Loaded ${validData.length} production points and ${priceData.length} price points`);
+
+                hideLoading();
+                renderCharts(validData, priceData);
+                updateStats(validData, priceData);
+            } catch (error) {
+                hideLoading();
+                showError(`Error: ${error.message}`);
+                console.error('Error:', error);
+            } finally {
+                updateBtn.disabled = false;
+            }
+        }
+
+        function renderCharts(validData, priceData) {
+            // Keep timestamps as UTC - Chart.js will display them correctly
+            const timestamps = validData.map(item => new Date(item.timestamp * 1000));
+            const production = validData.map(item => item.production || 0);
+            const consumption = validData.map(item => item.consumption || 0);
+
+            // Fix API data quality issue: sometimes solar > renewable (API bug)
+            // Ensure renewable always includes solar by taking the maximum
+            const rawRenewable = validData.map(item => item.production_renewable || 0);
+            const solar = validData.map(item => item.solar_energy_production || 0);
+            const renewable = rawRenewable.map((ren, idx) => Math.max(ren, solar[idx]));
+
+            // Calculate other renewables (wind, hydro, biomass, etc)
+            const otherRenewable = renewable.map((ren, idx) => Math.max(0, ren - solar[idx]));
+
+            // Production vs Consumption Chart
+            const ctx1 = document.getElementById('productionConsumptionChart');
+            if (productionConsumptionChart) {
+                productionConsumptionChart.destroy();
+            }
+
+            productionConsumptionChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [
+                        {
+                            label: 'Production (MW)',
+                            data: production,
+                            borderColor: 'rgb(102, 126, 234)',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Consumption (MW)',
+                            data: consumption,
+                            borderColor: 'rgb(118, 75, 162)',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: timestamps.length > 500 ? 'day' : 'hour',
+                                displayFormats: {
+                                    hour: 'MMM dd HH:mm',
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date & Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Power (MW)'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' MW';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Calculate non-renewable production
+            const nonRenewable = production.map((prod, idx) => Math.max(0, prod - renewable[idx]));
+
+            // Production Breakdown Chart (Stacked)
+            const ctx2 = document.getElementById('renewableChart');
+            if (renewableChart) {
+                renewableChart.destroy();
+            }
+
+            renewableChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [
+                        {
+                            label: 'Non-Renewable (oil shale, etc)',
+                            data: nonRenewable,
+                            borderColor: 'rgb(90, 90, 90)',
+                            backgroundColor: 'rgba(90, 90, 90, 0.8)',
+                            tension: 0.3,
+                            fill: 'origin',
+                            pointRadius: 0,
+                            borderWidth: 0
+                        },
+                        {
+                            label: 'Wind, Hydro, Biomass',
+                            data: otherRenewable,
+                            borderColor: 'rgb(76, 175, 80)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.8)',
+                            tension: 0.3,
+                            fill: '-1',
+                            pointRadius: 0,
+                            borderWidth: 0
+                        },
+                        {
+                            label: 'Solar',
+                            data: solar,
+                            borderColor: 'rgb(255, 193, 7)',
+                            backgroundColor: 'rgba(255, 193, 7, 0.9)',
+                            tension: 0.3,
+                            fill: '-1',
+                            pointRadius: 0,
+                            borderWidth: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: timestamps.length > 500 ? 'day' : 'hour',
+                                displayFormats: {
+                                    hour: 'MMM dd HH:mm',
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date & Time'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Production (MW)'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' MW';
+                                },
+                                footer: function(tooltipItems) {
+                                    let total = 0;
+                                    tooltipItems.forEach(item => total += item.parsed.y);
+                                    return 'Total: ' + total.toFixed(2) + ' MW';
+                                }
+                            }
+                        },
+                        filler: {
+                            propagate: false
+                        }
+                    }
+                }
+            });
+
+            // Price Chart timestamps
+            const priceTimestamps = priceData.map(item => new Date(item.timestamp * 1000));
+            const prices = priceData.map(item => item.price || 0);
+
+            const ctx3 = document.getElementById('priceChart');
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            priceChart = new Chart(ctx3, {
+                type: 'line',
+                data: {
+                    labels: priceTimestamps,
+                    datasets: [
+                        {
+                            label: 'Price (EUR/MWh)',
+                            data: prices,
+                            borderColor: 'rgb(220, 53, 69)',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: priceTimestamps.length > 500 ? 'day' : 'hour',
+                                displayFormats: {
+                                    hour: 'MMM dd HH:mm',
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date & Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Price (EUR/MWh)'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' EUR/MWh';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Price Correlation Chart (Production mix + Price overlay)
+            // Align production data with price data by timestamp
+            const alignedData = alignProductionWithPrice(validData, priceData);
+
+            const ctx4 = document.getElementById('priceCorrelationChart');
+            if (priceCorrelationChart) {
+                priceCorrelationChart.destroy();
+            }
+
+            priceCorrelationChart = new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: alignedData.timestamps,
+                    datasets: [
+                        {
+                            label: 'Non-Renewable (oil shale, etc)',
+                            data: alignedData.nonRenewable,
+                            borderColor: 'rgb(90, 90, 90)',
+                            backgroundColor: 'rgba(90, 90, 90, 0.8)',
+                            tension: 0.3,
+                            fill: 'origin',
+                            pointRadius: 0,
+                            borderWidth: 0
+                        },
+                        {
+                            label: 'Wind, Hydro, Biomass',
+                            data: alignedData.otherRenewable,
+                            borderColor: 'rgb(76, 175, 80)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.8)',
+                            tension: 0.3,
+                            fill: '-1',
+                            pointRadius: 0,
+                            borderWidth: 0
+                        },
+                        {
+                            label: 'Solar',
+                            data: alignedData.solar,
+                            borderColor: 'rgb(255, 193, 7)',
+                            backgroundColor: 'rgba(255, 193, 7, 0.9)',
+                            tension: 0.3,
+                            fill: '-1',
+                            pointRadius: 0,
+                            borderWidth: 0
+                        },
+                        {
+                            label: '💰 Price (EUR/MWh)',
+                            data: alignedData.prices,
+                            borderColor: 'rgb(220, 53, 69)',
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 0,
+                            borderWidth: 1.2,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: alignedData.timestamps.length > 500 ? 'day' : 'hour',
+                                displayFormats: {
+                                    hour: 'MMM dd HH:mm',
+                                    day: 'MMM dd'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date & Time'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Production (MW)'
+                            },
+                            beginAtZero: true,
+                            position: 'left'
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Price (EUR/MWh)'
+                            },
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y.toFixed(2);
+                                    if (label.includes('Price')) {
+                                        return label + ': ' + value + ' EUR/MWh';
+                                    } else {
+                                        return label + ': ' + value + ' MW';
+                                    }
+                                },
+                                footer: function(tooltipItems) {
+                                    let total = 0;
+                                    tooltipItems.forEach(item => {
+                                        if (!item.dataset.label.includes('Price')) {
+                                            total += item.parsed.y;
+                                        }
+                                    });
+                                    return total > 0 ? 'Total Production: ' + total.toFixed(2) + ' MW' : '';
+                                }
+                            }
+                        },
+                        filler: {
+                            propagate: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Align production data with price data by matching timestamps
+        function alignProductionWithPrice(productionData, priceData) {
+            // Create a map of price data by hour (prices are hourly)
+            const priceMap = new Map();
+            priceData.forEach(p => {
+                const hourTimestamp = Math.floor(p.timestamp / 3600) * 3600;
+                priceMap.set(hourTimestamp, p.price);
+            });
+
+            // For each production point, find the corresponding price
+            const aligned = {
+                timestamps: [],
+                nonRenewable: [],
+                otherRenewable: [],
+                solar: [],
+                prices: []
+            };
+
+            productionData.forEach(item => {
+                const hourTimestamp = Math.floor(item.timestamp / 3600) * 3600;
+                const price = priceMap.get(hourTimestamp);
+
+                if (price !== undefined) {
+                    const renewable = Math.max(item.production_renewable || 0, item.solar_energy_production || 0);
+                    const solar = item.solar_energy_production || 0;
+                    const otherRenewable = Math.max(0, renewable - solar);
+                    const nonRenewable = Math.max(0, (item.production || 0) - renewable);
+
+                    aligned.timestamps.push(new Date(item.timestamp * 1000));
+                    aligned.nonRenewable.push(nonRenewable);
+                    aligned.otherRenewable.push(otherRenewable);
+                    aligned.solar.push(solar);
+                    aligned.prices.push(price);
+                }
+            });
+
+            return aligned;
+        }
+
+        function updateStats(validData, priceData) {
+            const statsDiv = document.getElementById('stats');
+
+            const production = validData.map(item => item.production || 0);
+            const consumption = validData.map(item => item.consumption || 0);
+            const renewable = validData.map(item => item.production_renewable || 0);
+
+            const avgProd = production.reduce((a, b) => a + b, 0) / production.length;
+            const avgCons = consumption.reduce((a, b) => a + b, 0) / consumption.length;
+            const avgRenew = renewable.reduce((a, b) => a + b, 0) / renewable.length;
+            const maxProd = Math.max(...production);
+            const maxCons = Math.max(...consumption);
+            const renewablePercent = (avgRenew / avgProd * 100);
+
+            // Price statistics
+            const prices = priceData.map(item => item.price || 0);
+            const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+
+            // Calculate average production during high renewable vs low renewable periods
+            const sortedByRenewable = [...validData].sort((a, b) => {
+                const aRen = (a.production_renewable || 0) / (a.production || 1);
+                const bRen = (b.production_renewable || 0) / (b.production || 1);
+                return bRen - aRen;
+            });
+
+            const topRenewableHours = sortedByRenewable.slice(0, Math.floor(sortedByRenewable.length * 0.25));
+            const lowRenewableHours = sortedByRenewable.slice(-Math.floor(sortedByRenewable.length * 0.25));
+
+            // Match with prices
+            const priceMap = new Map();
+            priceData.forEach(p => {
+                const hourTimestamp = Math.floor(p.timestamp / 3600) * 3600;
+                priceMap.set(hourTimestamp, p.price);
+            });
+
+            const highRenewablePrices = topRenewableHours
+                .map(h => priceMap.get(Math.floor(h.timestamp / 3600) * 3600))
+                .filter(p => p !== undefined);
+
+            const lowRenewablePrices = lowRenewableHours
+                .map(h => priceMap.get(Math.floor(h.timestamp / 3600) * 3600))
+                .filter(p => p !== undefined);
+
+            const avgPriceHighRenewable = highRenewablePrices.length > 0
+                ? highRenewablePrices.reduce((a, b) => a + b, 0) / highRenewablePrices.length
+                : 0;
+
+            const avgPriceLowRenewable = lowRenewablePrices.length > 0
+                ? lowRenewablePrices.reduce((a, b) => a + b, 0) / lowRenewablePrices.length
+                : 0;
+
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${avgProd.toFixed(0)}</div>
+                    <div class="stat-label">Avg Production (MW)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgCons.toFixed(0)}</div>
+                    <div class="stat-label">Avg Consumption (MW)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${renewablePercent.toFixed(1)}%</div>
+                    <div class="stat-label">Renewable Share (% of Production)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgPrice.toFixed(2)}</div>
+                    <div class="stat-label">Overall Avg Price (EUR/MWh)</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+                    <div class="stat-value" style="color: #2e7d32;">${avgPriceHighRenewable.toFixed(2)}</div>
+                    <div class="stat-label">Price @ High Renewable</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">
+                    <div class="stat-value" style="color: #c62828;">${avgPriceLowRenewable.toFixed(2)}</div>
+                    <div class="stat-label">Price @ Low Renewable</div>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Initialize on page load
+        setDefaultDates();
+        updateCharts();
+    </script>
+</body>
+</html>
