@@ -256,10 +256,11 @@
 
         <div class="controls">
             <div class="quick-range">
+                <button class="quick-btn" onclick="setToday()">Today</button>
+                <button class="quick-btn" onclick="setYesterday()">Yesterday</button>
+                <button class="quick-btn" onclick="setQuickRange(3)">Last 3 Days</button>
                 <button class="quick-btn" onclick="setQuickRange(7)">Last 7 Days</button>
                 <button class="quick-btn" onclick="setQuickRange(14)">Last 14 Days</button>
-                <button class="quick-btn" onclick="setQuickRange(3)">Last 3 Days</button>
-                <button class="quick-btn" onclick="setQuickRange(1)">Last 24 Hours</button>
             </div>
         </div>
 
@@ -355,6 +356,34 @@
 
             document.getElementById('endDate').valueAsDate = endDate;
             document.getElementById('startDate').valueAsDate = startDate;
+
+            updateCharts();
+        }
+
+        // Today button - from midnight to now
+        function setToday() {
+            const today = new Date();
+            const startOfToday = new Date(today);
+            startOfToday.setHours(0, 0, 0, 0);
+
+            document.getElementById('startDate').valueAsDate = startOfToday;
+            document.getElementById('endDate').valueAsDate = today;
+
+            updateCharts();
+        }
+
+        // Yesterday button - full previous day
+        function setYesterday() {
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            yesterday.setHours(0, 0, 0, 0);
+
+            const endOfYesterday = new Date(today);
+            endOfYesterday.setHours(0, 0, 0, 0);
+
+            document.getElementById('startDate').valueAsDate = yesterday;
+            document.getElementById('endDate').valueAsDate = endOfYesterday;
 
             updateCharts();
         }
