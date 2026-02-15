@@ -25,6 +25,33 @@
             margin: 0 auto;
         }
 
+        .header-container {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .language-toggle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #667eea;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .language-toggle:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
         h1 {
             color: white;
             text-align: center;
@@ -36,7 +63,7 @@
         .subtitle {
             color: rgba(255,255,255,0.9);
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 0;
             font-size: 1.1em;
         }
 
@@ -136,6 +163,12 @@
             color: white;
         }
 
+        .quick-btn.active {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
         .chart-container {
             background: white;
             padding: 30px;
@@ -230,16 +263,112 @@
         .data-note a:hover {
             text-decoration: underline;
         }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                font-size: 0.95em;
+                margin-bottom: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            input[type="date"] {
+                width: 100%;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            button {
+                width: 100%;
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            .quick-range {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .quick-btn {
+                width: 100%;
+                padding: 10px;
+                font-size: 16px;
+            }
+
+            .chart-container {
+                padding: 15px;
+                margin-bottom: 15px;
+                min-height: 350px;
+            }
+
+            .chart-container canvas {
+                max-height: 300px !important;
+                height: 300px !important;
+            }
+
+            .chart-title {
+                font-size: 1.1em;
+                margin-bottom: 15px;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 1.5em;
+            }
+
+            .info-banner,
+            .data-note {
+                font-size: 0.85em;
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-title {
+                font-size: 1em;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚡ Estonian Electricity Dashboard</h1>
-        <p class="subtitle">Real-time production and consumption data from Elering</p>
-
-        <div class="info-banner">
-            <strong>📅 Data Availability:</strong> Elering API provides approximately 15 days of historical data.
-            Date range is automatically limited to available data.
+        <div class="header-container">
+            <button class="language-toggle" onclick="toggleLanguage()" id="langBtn">EST</button>
+            <h1 id="mainTitle">⚡ Estonia Power Market Dashboard</h1>
+            <p class="subtitle" id="subtitle">Real-time production and consumption data from Elering</p>
         </div>
 
         <div class="controls">
@@ -261,6 +390,7 @@
                 <button class="quick-btn" onclick="setQuickRange(3)">Last 3 Days</button>
                 <button class="quick-btn" onclick="setQuickRange(7)">Last 7 Days</button>
                 <button class="quick-btn" onclick="setQuickRange(14)">Last 14 Days</button>
+                <button class="quick-btn" onclick="setAllAvailable()">All Available</button>
             </div>
         </div>
 
@@ -275,13 +405,16 @@
         <div class="chart-container">
             <div class="chart-title">Production vs Consumption</div>
             <canvas id="productionConsumptionChart"></canvas>
+            <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
+                Total electricity production and consumption in Estonia (MW).
+            </div>
         </div>
 
         <div class="chart-container">
             <div class="chart-title">Production Breakdown by Source (Stacked)</div>
             <canvas id="renewableChart"></canvas>
             <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
-                ⚠️ Note: Elering API occasionally reports inconsistent solar vs renewable values. Chart auto-corrects these anomalies.
+                Production sources stacked: non-renewable (oil shale), renewable (wind, hydro, biomass), and solar.
             </div>
         </div>
 
@@ -289,21 +422,26 @@
             <div class="chart-title">Electricity Market Price (Nord Pool Spot)</div>
             <canvas id="priceChart"></canvas>
             <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
-                💡 Market price reflects supply/demand balance. Prices do not vary by energy source - all producers receive the same spot price.
+                Nord Pool spot market price in EUR/MWh. Same price applies to all energy sources.
             </div>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">Price vs Production Mix Correlation</div>
+            <div class="chart-title">Price vs Production</div>
             <canvas id="priceCorrelationChart"></canvas>
             <div style="font-size: 0.85em; color: #666; margin-top: 15px; text-align: center;">
-                📊 <strong style="color: rgb(220, 53, 69);">Red line = Price (EUR/MWh, right axis)</strong> overlaid on production sources (MW, left axis). Watch how price correlates with renewable vs non-renewable mix.
+                Red line shows price (EUR/MWh, right axis) overlaid on production mix (MW, left axis).
             </div>
+        </div>
+
+        <div class="info-banner">
+            <strong>📅 Data Availability:</strong> Elering API provides approximately 15 days of historical data.
+            Date range is automatically limited to available data.
         </div>
 
         <div class="data-note">
             <strong>Data Source:</strong> Elering API |
-            <strong>Data Granularity:</strong> 15-minute intervals (production), hourly (prices) |
+            <strong>Data Granularity:</strong> 15-minute intervals (production & prices) |
             <strong>Prices:</strong> Nord Pool spot market - same price for all energy sources |
             <strong>Detailed breakdown by source:</strong> <a href="https://elering.ee/en/production-and-forecast" target="_blank">Download Excel tables</a> |
             <strong>License:</strong> MIT - Free to use and modify
@@ -316,6 +454,215 @@
         let priceChart;
         let priceCorrelationChart;
 
+        // Language management
+        let currentLanguage = 'en';
+
+        const translations = {
+            en: {
+                mainTitle: '⚡ Estonia Power Market Dashboard',
+                subtitle: 'Real-time production and consumption data from Elering',
+                startDate: 'Start Date:',
+                endDate: 'End Date:',
+                updateBtn: 'Update Dashboard',
+                today: 'Today',
+                yesterday: 'Yesterday',
+                last3Days: 'Last 3 Days',
+                last7Days: 'Last 7 Days',
+                last14Days: 'Last 14 Days',
+                allAvailable: 'All Available',
+                chart1Title: 'Production vs Consumption',
+                chart1Note: 'Total electricity production and consumption in Estonia (MW).',
+                chart2Title: 'Production Breakdown by Source (Stacked)',
+                chart2Note: 'Production sources stacked: non-renewable (oil shale), renewable (wind, hydro, biomass), and solar.',
+                chart3Title: 'Electricity Market Price (Nord Pool Spot)',
+                chart3Note: 'Nord Pool spot market price in EUR/MWh. Same price applies to all energy sources.',
+                chart4Title: 'Price vs Production',
+                chart4Note: 'Red line shows price (EUR/MWh, right axis) overlaid on production mix (MW, left axis).',
+                dataAvailability: '<strong>📅 Data Availability:</strong> Elering API provides approximately 15 days of historical data. Date range is automatically limited to available data.',
+                dataSource: '<strong>Data Source:</strong> Elering API',
+                dataGranularity: '<strong>Data Granularity:</strong> 15-minute intervals (production & prices)',
+                prices: '<strong>Prices:</strong> Nord Pool spot market - same price for all energy sources',
+                detailedBreakdown: '<strong>Detailed breakdown by source:</strong>',
+                license: '<strong>License:</strong> MIT - Free to use and modify',
+                loading: 'Loading data from Elering API...',
+                nonRenewable: 'Non-Renewable (oil shale, etc)',
+                windHydroBiomass: 'Wind, Hydro, Biomass',
+                solar: 'Solar',
+                production: 'Production',
+                consumption: 'Consumption',
+                price: 'Price (EUR/MWh)',
+                dateTime: 'Date & Time',
+                powerMW: 'Power (MW)',
+                productionMW: 'Production (MW)',
+                avgProduction: 'Avg Production (MW)',
+                avgConsumption: 'Avg Consumption (MW)',
+                renewableShare: 'Renewable Share (% of Production)',
+                avgPrice: 'Overall Avg Price (EUR/MWh)',
+                priceHighRenewable: 'Price @ High Renewable',
+                priceLowRenewable: 'Price @ Low Renewable'
+            },
+            et: {
+                mainTitle: '⚡ Eesti Elektrituru Ülevaade',
+                subtitle: 'Reaalajas tootmise ja tarbimise andmed Eleringilt',
+                startDate: 'Alguskuupäev:',
+                endDate: 'Lõppkuupäev:',
+                updateBtn: 'Uuenda Ülevaadet',
+                today: 'Täna',
+                yesterday: 'Eile',
+                last3Days: 'Viimased 3 Päeva',
+                last7Days: 'Viimased 7 Päeva',
+                last14Days: 'Viimased 14 Päeva',
+                allAvailable: 'Kõik Saadaval',
+                chart1Title: 'Tootmine vs Tarbimine',
+                chart1Note: 'Elektri kogu tootmine ja tarbimine Eestis (MW).',
+                chart2Title: 'Tootmise Jaotus Allika Järgi (Kuhjatud)',
+                chart2Note: 'Tootmisallikad kuhjatult: taastumatu (põlevkivi), taastuv (tuul, hüdro, biomass) ja päike.',
+                chart3Title: 'Elektrituru Hind (Nord Pool Spot)',
+                chart3Note: 'Nord Pool spot-turu hind EUR/MWh. Sama hind rakendub kõikidele energiaallikatele.',
+                chart4Title: 'Hind vs Tootmine',
+                chart4Note: 'Punane joon kuvab hinda (EUR/MWh, paremal teljel) tootmisallika segu kohal (MW, vasakul teljel).',
+                dataAvailability: '<strong>📅 Andmete Kättesaadavus:</strong> Elering API pakub ligikaudu 15 päeva ajaloolisi andmeid. Kuupäevavahemik on automaatselt piiratud saadaoleva andmetega.',
+                dataSource: '<strong>Andmeallikas:</strong> Elering API',
+                dataGranularity: '<strong>Andmete Detailsus:</strong> 15-minutilised intervallid (tootmine ja hinnad)',
+                prices: '<strong>Hinnad:</strong> Nord Pool spot-turg - sama hind kõikidele energiaallikatele',
+                detailedBreakdown: '<strong>Üksikasjalik jaotus allika järgi:</strong>',
+                license: '<strong>Litsents:</strong> MIT - Vaba kasutamiseks ja muutmiseks',
+                loading: 'Laadin andmeid Elering API-st...',
+                nonRenewable: 'Taastumatu (põlevkivi jne)',
+                windHydroBiomass: 'Tuul, Vesi, Biomass',
+                solar: 'Päike',
+                production: 'Tootmine',
+                consumption: 'Tarbimine',
+                price: 'Hind (EUR/MWh)',
+                dateTime: 'Kuupäev ja Kellaaeg',
+                powerMW: 'Võimsus (MW)',
+                productionMW: 'Tootmine (MW)',
+                avgProduction: 'Keskmine Tootmine (MW)',
+                avgConsumption: 'Keskmine Tarbimine (MW)',
+                renewableShare: 'Taastuvenergia Osakaal (% Tootmisest)',
+                avgPrice: 'Keskmine Hind (EUR/MWh)',
+                priceHighRenewable: 'Hind Kõrge Taastuvenergia Juures',
+                priceLowRenewable: 'Hind Madala Taastuvenergia Juures'
+            }
+        };
+
+        function toggleLanguage() {
+            currentLanguage = currentLanguage === 'en' ? 'et' : 'en';
+            document.getElementById('langBtn').textContent = currentLanguage === 'en' ? 'EST' : 'ENG';
+            updateUILanguage();
+        }
+
+        function updateUILanguage() {
+            const t = translations[currentLanguage];
+
+            // Update static text
+            document.getElementById('mainTitle').textContent = t.mainTitle;
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.querySelector('label[for="startDate"]').textContent = t.startDate;
+            document.querySelector('label[for="endDate"]').textContent = t.endDate;
+            document.getElementById('updateBtn').textContent = t.updateBtn;
+
+            // Update quick buttons
+            document.querySelectorAll('.quick-btn')[0].textContent = t.today;
+            document.querySelectorAll('.quick-btn')[1].textContent = t.yesterday;
+            document.querySelectorAll('.quick-btn')[2].textContent = t.last3Days;
+            document.querySelectorAll('.quick-btn')[3].textContent = t.last7Days;
+            document.querySelectorAll('.quick-btn')[4].textContent = t.last14Days;
+            document.querySelectorAll('.quick-btn')[5].textContent = t.allAvailable;
+
+            // Update chart titles
+            document.querySelectorAll('.chart-title')[0].textContent = t.chart1Title;
+            document.querySelectorAll('.chart-title')[1].textContent = t.chart2Title;
+            document.querySelectorAll('.chart-title')[2].textContent = t.chart3Title;
+            document.querySelectorAll('.chart-title')[3].textContent = t.chart4Title;
+
+            // Update chart notes
+            const chartNotes = document.querySelectorAll('.chart-container > div[style*="font-size: 0.85em"]');
+            chartNotes[0].textContent = t.chart1Note;
+            chartNotes[1].textContent = t.chart2Note;
+            chartNotes[2].textContent = t.chart3Note;
+            chartNotes[3].textContent = t.chart4Note;
+
+            // Update banners
+            document.querySelector('.info-banner').innerHTML = t.dataAvailability;
+
+            // Update data note
+            const dataNote = document.querySelector('.data-note');
+            dataNote.innerHTML = `
+                ${t.dataSource} |
+                ${t.dataGranularity} |
+                ${t.prices} |
+                ${t.detailedBreakdown} <a href="https://elering.ee/en/production-and-forecast" target="_blank">Download Excel tables</a> |
+                ${t.license}
+            `;
+
+            // Update loading text
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.querySelector('div:last-child').textContent = t.loading;
+            }
+
+            // Re-render charts with new language
+            if (productionConsumptionChart) {
+                const validData = window.lastValidData;
+                const priceData = window.lastPriceData;
+                if (validData && priceData) {
+                    renderCharts(validData, priceData);
+                    updateStats(validData, priceData);
+                }
+            }
+        }
+
+        // Detect mobile device
+        const isMobile = window.innerWidth <= 768;
+
+        // Mobile-friendly chart options
+        function getMobileChartOptions(baseOptions) {
+            if (!isMobile) return baseOptions;
+
+            // Deep clone to avoid mutating original
+            const mobileOptions = JSON.parse(JSON.stringify(baseOptions));
+
+            // Adjust for mobile
+            mobileOptions.maintainAspectRatio = false;
+
+            if (mobileOptions.plugins && mobileOptions.plugins.legend) {
+                mobileOptions.plugins.legend.labels = {
+                    font: { size: 10 },
+                    boxWidth: 15,
+                    padding: 8
+                };
+            }
+
+            // Rotate and reduce x-axis labels on mobile
+            if (mobileOptions.scales && mobileOptions.scales.x) {
+                mobileOptions.scales.x.ticks = {
+                    ...mobileOptions.scales.x.ticks,
+                    maxRotation: 45,
+                    minRotation: 45,
+                    maxTicksLimit: 6,
+                    font: { size: 9 }
+                };
+            }
+
+            // Smaller y-axis labels
+            if (mobileOptions.scales && mobileOptions.scales.y) {
+                mobileOptions.scales.y.ticks = {
+                    ...mobileOptions.scales.y.ticks,
+                    font: { size: 9 }
+                };
+            }
+
+            if (mobileOptions.scales && mobileOptions.scales.y1) {
+                mobileOptions.scales.y1.ticks = {
+                    ...mobileOptions.scales.y1.ticks,
+                    font: { size: 9 }
+                };
+            }
+
+            return mobileOptions;
+        }
+
         // No timezone conversion needed for display - keep UTC timestamps as-is
         // The fix is in the API request, not the display
 
@@ -326,6 +673,35 @@
             startDate.setDate(startDate.getDate() - 15); // Safe limit
 
             return { startDate, endDate };
+        }
+
+        // Fetch the actual earliest available date from the API
+        async function getEarliestAvailableDate() {
+            try {
+                // Try to fetch data from 30 days ago to now
+                const now = new Date();
+                const thirtyDaysAgo = new Date(now);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                const startStr = thirtyDaysAgo.toISOString();
+                const endStr = now.toISOString();
+
+                const data = await fetchProductionConsumption(startStr, endStr);
+                const validData = filterValidData(data);
+
+                if (validData.length > 0) {
+                    // Return the earliest timestamp from the data
+                    const earliestTimestamp = validData[0].timestamp;
+                    return new Date(earliestTimestamp * 1000);
+                }
+            } catch (error) {
+                console.error('Could not fetch earliest date:', error);
+            }
+
+            // Fallback to 15 days if API call fails
+            const fallback = new Date();
+            fallback.setDate(fallback.getDate() - 15);
+            return fallback;
         }
 
         // Set date inputs with validation
@@ -346,6 +722,27 @@
             document.getElementById('startDate').max = endDate.toISOString().split('T')[0];
             document.getElementById('endDate').min = minDate.toISOString().split('T')[0];
             document.getElementById('endDate').max = endDate.toISOString().split('T')[0];
+
+            // Set "Last 7 Days" button as active by default
+            setActiveButton(3);
+        }
+
+        // Set active button state
+        function setActiveButton(buttonIndex) {
+            const buttons = document.querySelectorAll('.quick-btn');
+            buttons.forEach((btn, index) => {
+                if (index === buttonIndex) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Clear active button state (for custom ranges)
+        function clearActiveButton() {
+            const buttons = document.querySelectorAll('.quick-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
         }
 
         // Quick range buttons
@@ -356,6 +753,11 @@
 
             document.getElementById('endDate').valueAsDate = endDate;
             document.getElementById('startDate').valueAsDate = startDate;
+
+            // Set active button based on days
+            if (days === 3) setActiveButton(2);
+            else if (days === 7) setActiveButton(3);
+            else if (days === 14) setActiveButton(4);
 
             updateCharts();
         }
@@ -368,6 +770,7 @@
             document.getElementById('startDate').value = today;
             document.getElementById('endDate').value = today;
 
+            setActiveButton(0); // Today is first button
             updateCharts();
         }
 
@@ -383,7 +786,34 @@
             document.getElementById('startDate').value = yesterdayStr;
             document.getElementById('endDate').value = todayStr;
 
+            setActiveButton(1); // Yesterday is second button
             updateCharts();
+        }
+
+        // All Available button - show maximum available data
+        async function setAllAvailable() {
+            const updateBtn = document.getElementById('updateBtn');
+            updateBtn.disabled = true;
+            showLoading();
+
+            try {
+                const earliestDate = await getEarliestAvailableDate();
+                const now = new Date();
+
+                const startStr = earliestDate.toISOString().split('T')[0];
+                const endStr = now.toISOString().split('T')[0];
+
+                document.getElementById('startDate').value = startStr;
+                document.getElementById('endDate').value = endStr;
+
+                setActiveButton(5); // All Available is sixth button
+                await updateCharts();
+            } catch (error) {
+                showError('Could not load all available data');
+                console.error('Error:', error);
+            } finally {
+                updateBtn.disabled = false;
+            }
         }
 
         // Format date for API - interpret date as local Estonian time
@@ -464,12 +894,7 @@
 
         // Validate date range
         function validateDateRange(startDate, endDate) {
-            const { startDate: minStart } = getValidDateRange();
             const now = new Date();
-
-            if (startDate < minStart) {
-                throw new Error(`Start date cannot be earlier than ${minStart.toLocaleDateString()}. API only provides ~15 days of history.`);
-            }
 
             if (endDate > now) {
                 throw new Error('End date cannot be in the future');
@@ -480,8 +905,8 @@
             }
 
             const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
-            if (daysDiff > 15) {
-                throw new Error('Date range cannot exceed 15 days');
+            if (daysDiff > 30) {
+                throw new Error('Date range cannot exceed 30 days');
             }
         }
 
@@ -541,6 +966,12 @@
         }
 
         function renderCharts(validData, priceData) {
+            // Store data globally for language changes
+            window.lastValidData = validData;
+            window.lastPriceData = priceData;
+
+            const t = translations[currentLanguage];
+
             // Keep timestamps as UTC - Chart.js will display them correctly
             const timestamps = validData.map(item => new Date(item.timestamp * 1000));
             const production = validData.map(item => item.production || 0);
@@ -556,6 +987,9 @@
             const otherRenewable = renewable.map((ren, idx) => Math.max(0, ren - solar[idx]));
 
             // Production vs Consumption Chart
+            const timeUnit1 = timestamps.length > 500 ? 'day' : 'hour';
+            const maxTicks1 = timeUnit1 === 'day' ? (isMobile ? 7 : 12) : (isMobile ? 5 : 6);
+
             const ctx1 = document.getElementById('productionConsumptionChart');
             if (productionConsumptionChart) {
                 productionConsumptionChart.destroy();
@@ -567,7 +1001,7 @@
                     labels: timestamps,
                     datasets: [
                         {
-                            label: 'Production (MW)',
+                            label: t.production,
                             data: production,
                             borderColor: 'rgb(102, 126, 234)',
                             backgroundColor: 'rgba(102, 126, 234, 0.1)',
@@ -577,7 +1011,7 @@
                             borderWidth: 2
                         },
                         {
-                            label: 'Consumption (MW)',
+                            label: t.consumption,
                             data: consumption,
                             borderColor: 'rgb(118, 75, 162)',
                             backgroundColor: 'rgba(118, 75, 162, 0.1)',
@@ -599,28 +1033,42 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: timestamps.length > 500 ? 'day' : 'hour',
+                                unit: timeUnit1,
                                 displayFormats: {
                                     hour: 'MMM dd HH:mm',
                                     day: 'MMM dd'
                                 }
                             },
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Date & Time'
+                            },
+                            ticks: {
+                                maxRotation: isMobile ? 45 : 0,
+                                minRotation: isMobile ? 45 : 0,
+                                maxTicksLimit: maxTicks1,
+                                font: { size: isMobile ? 9 : 12 }
                             }
                         },
                         y: {
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Power (MW)'
                             },
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: isMobile ? 9 : 12 }
+                            }
                         }
                     },
                     plugins: {
                         legend: {
                             position: 'top',
+                            labels: {
+                                font: { size: isMobile ? 10 : 12 },
+                                boxWidth: isMobile ? 15 : 40,
+                                padding: isMobile ? 8 : 10
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -637,6 +1085,9 @@
             const nonRenewable = production.map((prod, idx) => Math.max(0, prod - renewable[idx]));
 
             // Production Breakdown Chart (Stacked)
+            const timeUnit2 = timestamps.length > 500 ? 'day' : 'hour';
+            const maxTicks2 = timeUnit2 === 'day' ? (isMobile ? 7 : 12) : (isMobile ? 5 : 6);
+
             const ctx2 = document.getElementById('renewableChart');
             if (renewableChart) {
                 renewableChart.destroy();
@@ -648,7 +1099,7 @@
                     labels: timestamps,
                     datasets: [
                         {
-                            label: 'Non-Renewable (oil shale, etc)',
+                            label: t.nonRenewable,
                             data: nonRenewable,
                             borderColor: 'rgb(90, 90, 90)',
                             backgroundColor: 'rgba(90, 90, 90, 0.8)',
@@ -658,7 +1109,7 @@
                             borderWidth: 0
                         },
                         {
-                            label: 'Wind, Hydro, Biomass',
+                            label: t.windHydroBiomass,
                             data: otherRenewable,
                             borderColor: 'rgb(76, 175, 80)',
                             backgroundColor: 'rgba(76, 175, 80, 0.8)',
@@ -668,7 +1119,7 @@
                             borderWidth: 0
                         },
                         {
-                            label: 'Solar',
+                            label: t.solar,
                             data: solar,
                             borderColor: 'rgb(255, 193, 7)',
                             backgroundColor: 'rgba(255, 193, 7, 0.9)',
@@ -690,29 +1141,43 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: timestamps.length > 500 ? 'day' : 'hour',
+                                unit: timeUnit2,
                                 displayFormats: {
                                     hour: 'MMM dd HH:mm',
                                     day: 'MMM dd'
                                 }
                             },
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Date & Time'
+                            },
+                            ticks: {
+                                maxRotation: isMobile ? 45 : 0,
+                                minRotation: isMobile ? 45 : 0,
+                                maxTicksLimit: maxTicks2,
+                                font: { size: isMobile ? 9 : 12 }
                             }
                         },
                         y: {
                             stacked: true,
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Production (MW)'
                             },
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: isMobile ? 9 : 12 }
+                            }
                         }
                     },
                     plugins: {
                         legend: {
                             position: 'top',
+                            labels: {
+                                font: { size: isMobile ? 10 : 12 },
+                                boxWidth: isMobile ? 15 : 40,
+                                padding: isMobile ? 8 : 10
+                            }
                         },
                         tooltip: {
                             mode: 'index',
@@ -738,6 +1203,9 @@
             const priceTimestamps = priceData.map(item => new Date(item.timestamp * 1000));
             const prices = priceData.map(item => item.price || 0);
 
+            const timeUnit3 = priceTimestamps.length > 500 ? 'day' : 'hour';
+            const maxTicks3 = timeUnit3 === 'day' ? (isMobile ? 7 : 12) : (isMobile ? 5 : 6);
+
             const ctx3 = document.getElementById('priceChart');
             if (priceChart) {
                 priceChart.destroy();
@@ -749,7 +1217,7 @@
                     labels: priceTimestamps,
                     datasets: [
                         {
-                            label: 'Price (EUR/MWh)',
+                            label: t.price,
                             data: prices,
                             borderColor: 'rgb(220, 53, 69)',
                             backgroundColor: 'rgba(220, 53, 69, 0.1)',
@@ -771,28 +1239,42 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: priceTimestamps.length > 500 ? 'day' : 'hour',
+                                unit: timeUnit3,
                                 displayFormats: {
                                     hour: 'MMM dd HH:mm',
                                     day: 'MMM dd'
                                 }
                             },
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Date & Time'
+                            },
+                            ticks: {
+                                maxRotation: isMobile ? 45 : 0,
+                                minRotation: isMobile ? 45 : 0,
+                                maxTicksLimit: maxTicks3,
+                                font: { size: isMobile ? 9 : 12 }
                             }
                         },
                         y: {
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Price (EUR/MWh)'
                             },
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                font: { size: isMobile ? 9 : 12 }
+                            }
                         }
                     },
                     plugins: {
                         legend: {
                             position: 'top',
+                            labels: {
+                                font: { size: isMobile ? 10 : 12 },
+                                boxWidth: isMobile ? 15 : 40,
+                                padding: isMobile ? 8 : 10
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -809,6 +1291,9 @@
             // Align production data with price data by timestamp
             const alignedData = alignProductionWithPrice(validData, priceData);
 
+            const timeUnit4 = alignedData.timestamps.length > 500 ? 'day' : 'hour';
+            const maxTicks4 = timeUnit4 === 'day' ? (isMobile ? 7 : 12) : (isMobile ? 5 : 6);
+
             const ctx4 = document.getElementById('priceCorrelationChart');
             if (priceCorrelationChart) {
                 priceCorrelationChart.destroy();
@@ -820,7 +1305,7 @@
                     labels: alignedData.timestamps,
                     datasets: [
                         {
-                            label: 'Non-Renewable (oil shale, etc)',
+                            label: t.nonRenewable,
                             data: alignedData.nonRenewable,
                             borderColor: 'rgb(90, 90, 90)',
                             backgroundColor: 'rgba(90, 90, 90, 0.8)',
@@ -830,7 +1315,7 @@
                             borderWidth: 0
                         },
                         {
-                            label: 'Wind, Hydro, Biomass',
+                            label: t.windHydroBiomass,
                             data: alignedData.otherRenewable,
                             borderColor: 'rgb(76, 175, 80)',
                             backgroundColor: 'rgba(76, 175, 80, 0.8)',
@@ -840,7 +1325,7 @@
                             borderWidth: 0
                         },
                         {
-                            label: 'Solar',
+                            label: t.solar,
                             data: alignedData.solar,
                             borderColor: 'rgb(255, 193, 7)',
                             backgroundColor: 'rgba(255, 193, 7, 0.9)',
@@ -850,15 +1335,16 @@
                             borderWidth: 0
                         },
                         {
-                            label: '💰 Price (EUR/MWh)',
+                            label: t.price,
                             data: alignedData.prices,
                             borderColor: 'rgb(220, 53, 69)',
-                            backgroundColor: 'transparent',
-                            tension: 0.3,
-                            fill: false,
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            tension: 0.4,
+                            fill: true,
                             pointRadius: 0,
-                            borderWidth: 1.2,
-                            yAxisID: 'y1'
+                            borderWidth: 2,
+                            yAxisID: 'y1',
+                            order: 100
                         }
                     ]
                 },
@@ -873,43 +1359,60 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: alignedData.timestamps.length > 500 ? 'day' : 'hour',
+                                unit: timeUnit4,
                                 displayFormats: {
                                     hour: 'MMM dd HH:mm',
                                     day: 'MMM dd'
                                 }
                             },
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Date & Time'
+                            },
+                            ticks: {
+                                maxRotation: isMobile ? 45 : 0,
+                                minRotation: isMobile ? 45 : 0,
+                                maxTicksLimit: maxTicks4,
+                                font: { size: isMobile ? 9 : 12 }
                             }
                         },
                         y: {
                             stacked: true,
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Production (MW)'
                             },
                             beginAtZero: true,
-                            position: 'left'
+                            position: 'left',
+                            ticks: {
+                                font: { size: isMobile ? 9 : 12 }
+                            }
                         },
                         y1: {
                             type: 'linear',
                             display: true,
                             position: 'right',
                             title: {
-                                display: true,
+                                display: !isMobile,
                                 text: 'Price (EUR/MWh)'
                             },
                             beginAtZero: true,
                             grid: {
                                 drawOnChartArea: false,
+                            },
+                            ticks: {
+                                font: { size: isMobile ? 9 : 12 }
                             }
                         }
                     },
                     plugins: {
                         legend: {
                             position: 'top',
+                            labels: {
+                                font: { size: isMobile ? 10 : 12 },
+                                boxWidth: isMobile ? 15 : 40,
+                                padding: isMobile ? 8 : 10
+                            }
                         },
                         tooltip: {
                             mode: 'index',
@@ -944,11 +1447,10 @@
 
         // Align production data with price data by matching timestamps
         function alignProductionWithPrice(productionData, priceData) {
-            // Create a map of price data by hour (prices are hourly)
+            // Create a map of price data by exact timestamp (prices are 15-minute intervals)
             const priceMap = new Map();
             priceData.forEach(p => {
-                const hourTimestamp = Math.floor(p.timestamp / 3600) * 3600;
-                priceMap.set(hourTimestamp, p.price);
+                priceMap.set(p.timestamp, p.price);
             });
 
             // For each production point, find the corresponding price
@@ -961,8 +1463,7 @@
             };
 
             productionData.forEach(item => {
-                const hourTimestamp = Math.floor(item.timestamp / 3600) * 3600;
-                const price = priceMap.get(hourTimestamp);
+                const price = priceMap.get(item.timestamp);
 
                 if (price !== undefined) {
                     const renewable = Math.max(item.production_renewable || 0, item.solar_energy_production || 0);
@@ -982,6 +1483,7 @@
         }
 
         function updateStats(validData, priceData) {
+            const t = translations[currentLanguage];
             const statsDiv = document.getElementById('stats');
 
             const production = validData.map(item => item.production || 0);
@@ -1037,27 +1539,27 @@
             statsDiv.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-value">${avgProd.toFixed(0)}</div>
-                    <div class="stat-label">Avg Production (MW)</div>
+                    <div class="stat-label">${t.avgProduction}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${avgCons.toFixed(0)}</div>
-                    <div class="stat-label">Avg Consumption (MW)</div>
+                    <div class="stat-label">${t.avgConsumption}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${renewablePercent.toFixed(1)}%</div>
-                    <div class="stat-label">Renewable Share (% of Production)</div>
+                    <div class="stat-label">${t.renewableShare}</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">${avgPrice.toFixed(2)}</div>
-                    <div class="stat-label">Overall Avg Price (EUR/MWh)</div>
+                    <div class="stat-label">${t.avgPrice}</div>
                 </div>
                 <div class="stat-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
                     <div class="stat-value" style="color: #2e7d32;">${avgPriceHighRenewable.toFixed(2)}</div>
-                    <div class="stat-label">Price @ High Renewable</div>
+                    <div class="stat-label">${t.priceHighRenewable}</div>
                 </div>
                 <div class="stat-card" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">
                     <div class="stat-value" style="color: #c62828;">${avgPriceLowRenewable.toFixed(2)}</div>
-                    <div class="stat-label">Price @ Low Renewable</div>
+                    <div class="stat-label">${t.priceLowRenewable}</div>
                 </div>
             `;
         }
@@ -1080,6 +1582,10 @@
         function hideLoading() {
             document.getElementById('loading').style.display = 'none';
         }
+
+        // Add event listeners to date inputs to clear active button on manual change
+        document.getElementById('startDate').addEventListener('change', clearActiveButton);
+        document.getElementById('endDate').addEventListener('change', clearActiveButton);
 
         // Initialize on page load
         setDefaultDates();
